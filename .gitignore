@@ -1,0 +1,10 @@
+# compiled binaries
+p1
+p2
+*.o
+*.out
+
+# editor / OS files
+.vscode/
+.DS_Store
+__pycache__/
