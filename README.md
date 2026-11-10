@@ -36,7 +36,9 @@ python plot_p2.py
 
 ### 1.1 Problem
 
-X = x<sub>1</sub>…x<sub>n</sub> and Y = y<sub>1</sub>…y<sub>m</sub> are strings over [A–Z]. We choose two substrings of the same length L, X[i−L+1..i] and Y[j−L+1..j], and compare them position by position (no gaps). Each position scores
+X = x<sub>1</sub>…x<sub>n</sub> and Y = y<sub>1</sub>…y<sub>m</sub> are strings over [A–Z]. The two input strings may have different lengths (n = m and n ≠ m are both allowed). We choose two substrings of the same length L, X[i−L+1..i] and Y[j−L+1..j], and compare them position by position (since gaps are not allowed). 
+
+Each position scores
 
 ```
 s(a, b) = w_a      if a = b
@@ -49,15 +51,24 @@ Because there are no gaps, the k-th character of one substring is always compare
 
 ### 1.2 Optimization function
 
-For 0 ≤ i ≤ n and 0 ≤ j ≤ m, `D[i][j]` is the largest score of a pair (possibly empty) that **ends** at x<sub>i</sub> and y<sub>j</sub>.
+For 0 ≤ i ≤ n and 0 ≤ j ≤ m, `D[i][j]` is the largest score of a pair that ends at
+position i of X and position j of Y, that is, X[i−L+1 .. i] against Y[j−L+1 .. j]
+for some 0 ≤ L ≤ min(i, j):
+
+```
+D[i][j] = max over 0 <= L <= min(i,j) of  sum_{k=0}^{L-1} s(x_{i-k}, y_{j-k})
+```
+
+L = 0 is the empty pair with score 0, so `D[i][j] ≥ 0`.
 
 ### 1.3 Recurrence (Bellman equations)
 
 ```
 D[i][0] = D[0][j] = 0
 D[i][j] = max( 0,  D[i-1][j-1] + s(x_i, y_j) )      for 1 <= i <= n, 1 <= j <= m
-OPT     = max over all i, j of D[i][j]
+OPT = max over all i, j of D[i][j]
 ```
+OPT = Optimal Solution(score)
 
 ### 1.4 Correctness
 
@@ -65,21 +76,49 @@ We prove by induction on i + j that `D[i][j]` is the best score of a pair ending
 
 If i = 0 or j = 0, only the empty pair ends there, so the value is 0.
 
-Otherwise, a pair ending at (i, j) is either empty (score 0) or non-empty. A non-empty pair is a pair ending at (i−1, j−1), possibly empty, followed by the comparison of x<sub>i</sub> with y<sub>j</sub>. Its score is (score of that shorter pair) + s(x<sub>i</sub>, y<sub>j</sub>). The term s(x<sub>i</sub>, y<sub>j</sub>) is the same for every such pair, so the score is maximized by taking the best pair ending at (i−1, j−1). By the induction hypothesis that best score is `D[i-1][j-1]`. Taking the larger of the empty pair and the best non-empty pair gives the recurrence.
+Otherwise, a pair ending at (i, j) is either empty (score 0) or non-empty. A non-empty pair of length L is a pair of length L−1 ending at (i−1, j−1), possibly empty, followed
+by the comparison of x<sub>i</sub> with y<sub>j</sub>. Its score is (score of the shorter pair) +
+s(x<sub>i</sub>, y<sub>j</sub>). The last term is the same for all such pairs, so the best non-empty
+pair uses the best pair ending at (i−1, j−1), whose score is `D[i-1][j-1]` by the
+induction hypothesis. Taking the larger of 0 and `D[i-1][j-1] + s(x_i, y_j)` gives the recurrence.
 
-This is the optimal-substructure property: the prefix of an optimal pair ending at (i, j) is itself optimal among pairs ending at (i−1, j−1). If it were not, swapping in a better prefix would raise the total score, which contradicts optimality.
+This is the optimal-substructure property: if an optimal pair ending at (i, j) is
+non-empty, removing its last position leaves an optimal pair ending at (i−1, j−1).
+Otherwise a better prefix could be swapped in and the total score would increase.
 
-Every pair ends at some cell (or is empty), so the largest `D[i][j]` is the optimal score. The cells are filled row by row, so `D[i-1][j-1]` is always ready when needed.
+Each `D[i][j]` is the score of an actual pair, so max D ≤ OPT. Conversely, every
+non-empty pair ends at some cell (i, j) with i, j ≥ 1, so its score is at most `D[i][j]`,
+and the empty pair scores 0 = `D[0][0]`. Hence OPT = max D. The cells are filled row
+by row, so `D[i-1][j-1]` is always computed before `D[i][j]`.
 
-Handout example: "CAABC" (from position 3 of X) against "CAACC" (from position 4 of Y) gives w<sub>C</sub> + w<sub>A</sub> + w<sub>A</sub> − δ + w<sub>C</sub> = 2w<sub>C</sub> + 2w<sub>A</sub> − δ. With the Scenario 2 weights and δ = 5814 the program prints 2·2782 + 2·8167 − 5814 = 16084.
+Handout example: "CAABC" (from position 3 of X) against "CAACC" (from position 4 of Y)
+gives w<sub>C</sub> + w<sub>A</sub> + w<sub>A</sub> − δ + w<sub>C</sub> = 2w<sub>C</sub> + 2w<sub>A</sub> − δ.
+With the Scenario 2 weights and δ = 5814 the program prints 2·2782 + 2·8167 − 5814 = 16084.
+This only checks the scoring rule. It is not the optimum: for δ = 5814 the best pair is
+"AABCAA" / "ABBCAA" with score 3w<sub>A</sub> + w<sub>B</sub> + w<sub>C</sub> − δ = 22961.
 
 ### 1.5 Extracting the optimal pair
 
-While filling the table we keep the cell `(i*, j*)` with the largest value. With ties, the first one reached in row order is kept.
+While filling the table we keep the cell `(i*, j*)` with the largest value; with ties,
+the first one reached in row order is kept. If the largest value is 0, the answer is the
+empty pair (L = 0).
 
-If `D[i][j] > 0`, the maximum in the recurrence was reached by the second term. The best pair ending at (i, j) is then the best pair ending at (i−1, j−1) plus one position. So starting from `(i*, j*)` we step to `(i*-1, j*-1)`, `(i*-2, j*-2)`, … while D > 0, and count the steps as L. The first cell with D = 0 is where the optimal pair starts over. The answer is `X[i*-L+1 .. i*]` and `Y[j*-L+1 .. j*]`, with score `D[i*][j*]`.
+If `D[i][j] > 0`, the maximum in the recurrence came from the second term, so
+`D[i][j] = D[i-1][j-1] + s(x_i, y_j)`. Starting from `(i*, j*)` we step to
+`(i*-1, j*-1)`, `(i*-2, j*-2)`, … while D > 0, and count the visited cells as L.
+The walk stops at the cell `(i*-L, j*-L)`, which has D = 0; this happens at row or
+column 0 at the latest. The pair starts right after that cell:
+`X[i*-L+1 .. i*]` and `Y[j*-L+1 .. j*]`. Adding the L equations
+`D[i][j] = D[i-1][j-1] + s(x_i, y_j)` along the walk, and using D = 0 at the stopping
+cell, shows that the score of this pair is exactly `D[i*][j*]`.
 
-Two-row version: with each value we also store the length of its pair, `R[i][j] = R[i-1][j-1] + 1` if `D[i][j] > 0` and 0 otherwise. Only two rows of D and R are kept, and R at the best cell gives L directly, so extraction does not need the full table. On every input, the two versions returned the same pair.
+Two-row version: with each value we also store the length of its pair,
+`R[i][j] = R[i-1][j-1] + 1` if `D[i][j] > 0` and 0 otherwise. R counts the consecutive
+positive cells on the diagonal, so `R[i*][j*]` equals the L found by the walk above.
+Only two rows of D and R are kept, plus the best value, `(i*, j*)` and its R.
+Since the tie rule is also the same, both versions return the same pair. This was
+confirmed on every test where both were run (`full_eq_lin = yes`).
+
 
 ### 1.6 Complexity
 
