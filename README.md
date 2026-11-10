@@ -117,7 +117,7 @@ R counts the consecutive positive cells on the diagonal, so `R[i*][j*]` equals t
 
 ### 1.6 Complexity
 
-**Time: Θ(nm).** The DP table has (n+1)(m+1) cells. Row 0 and column 0 are set to 0. Each of
+**Time: Θ(nm).** The running time is O(nm); in fact it is Θ(nm). The DP table has (n+1)(m+1) cells. Row 0 and column 0 are set to 0. Each of
 the other nm cells needs one addition, one comparison with 0, and one comparison with the best
 value so far (to record `(i*, j*)`), so O(1) per cell. All nm cells are computed for every
 input, so filling the table takes Θ(nm). The traceback takes at most min(n, m) steps, and
@@ -130,6 +130,9 @@ reading the input takes Θ(n + m). The total is Θ(nm) for n, m ≥ 1.
 | Full table | (n+1)(m+1) four-byte integers | Θ(nm) |
 | Two-row (optional) | 2 rows of D + 2 rows of R, each m+1 four-byte integers | Θ(m) |
 
+Scores are stored as `int`, which is 4 bytes on the test platform (x86-64, g++); the measured heap peak (4000+1)² · 4 = 64,032,004 bytes confirms this.
+
+
 Y (length m) is the string along the columns. The two-row auxiliary space can be reduced to
 Θ(min(n, m)) by placing the shorter string along the columns. Both versions also store the
 input strings, n + m bytes, i.e. Θ(n + m).
@@ -139,8 +142,8 @@ w<sub>max</sub> = max<sub>l</sub> w<sub>l</sub>. For the longest input used in t
 this is 12702 · 8000 = 101,616,000 < 2<sup>31</sup> − 1, so 32-bit signed integers are enough for all
 experiments. The program checks this bound before each run.
 
-
-**Validation.** `bruteForce` tries every start pair and every length in O(nm · min(n, m))
+### 1.7 Validation
+`bruteForce` tries every start pair and every length in O(nm · min(n, m))
 time and serves as an independent reference. `selfTest` compares it with both DP versions
 on 500 random cases (fixed seed 7), with n and m drawn independently from 1..60. The cases
 are split evenly (125 each) between Scenario 1 (δ = 10) and Scenario 2 (δ chosen at random
@@ -160,6 +163,8 @@ for 8000 × 8000 only the two-row version was run, so `full_eq_lin` is n/a there
 
 
 ### 1.8 Experimental setup
+
+Problem 1: positions are 1-based, as in the handout.
 
 **Scenario 1:** w<sub>l</sub> = 1 for all letters, δ = 10. One mismatch cancels ten matches, so including a mismatch only helps if it brings in more than ten extra matches.
 
@@ -192,11 +197,12 @@ The endpoints δ = 74 (t = 0) and δ = 12702 (t = 11) were also run.
   up to 9 can gain, so the optimum has no mismatches. It is "BCAA" (position 2 of X, position 3
   of Y) with score 4. This optimum is not unique, since "BCAA" also starts at position 6 of X.
 
-**Data:** random strings with letters drawn either uniformly from the 26 letters or from the English distribution above. Sizes were n = m ∈ {100, 500, 1000, 2000, 4000, 8000}, plus one unequal case, 1000 × 4000. The seed is fixed (20261103). The full table was run up to 4000 × 4000 (64 MB); for 8000 × 8000 only the two-row version was run.
+**Data:** random strings with letters drawn either uniformly from the 26 letters or from the English distribution above. Sizes were n = m ∈ {100, 500, 1000, 2000, 4000, 8000}, plus one unequal case, 1000 × 4000. The seed is fixed (20261103). Each configuration uses one random instance; reported times are averages over repeated runs on that instance. The δ sweep reuses the same pair of 2000 × 2000 strings for every δ. The full table was run up to 4000 × 4000 (64 MB); for 8000 × 8000 only the two-row version was run.
 
 **Measurement:** time with `std::chrono::steady_clock`, using one warm-up run and then repetitions until at least 200 ms and 3 runs had passed. The reported number is the average per run. Memory was measured in a separate process for each configuration, in two ways:
 
-- **heap peak:** bytes allocated by the solver, counted exactly by overriding `operator new`;
+- **heap peak:** the peak number of bytes requested through the overridden operator new; it excludes allocator metadata and rounding. In Problem 1 the inputs are created before the measurement starts, so theory − heap peak = n + m (the input bytes). In Problem 2 the matrix B is included in both columns, so they coincide;
+
 - **ΔRSS:** change in the resident memory reported by the OS (`/proc/self/statm`, `getrusage`).
 
 ### 1.9 Results
@@ -255,9 +261,10 @@ Uniform letters, same sizes: δ = 74 gave length 1635 with 1543 mismatches; δ =
 **Time.** From 100 × 100 to 8000 × 8000 (a 6400-fold increase in n·m), the time per cell
 stays between 2.1 and 2.4 ns (Table 1.1), and the log–log plot has slope close to 1,
 consistent with Θ(nm). The 2000 × 2000 and 1000 × 4000 inputs have the same number of cells
-and similar times, so the cost depends on n·m, not on the two lengths separately. In these
-size experiments the full-table and two-row versions differ by at most about 20 %, with no
-consistent direction (the δ sweep is discussed at the end of this section).
+and similar times, so the cost depends on n·m, not on the two lengths separately. In these size experiments the two versions ran at similar speed. The largest gap was at
+4000 × 4000: 43.4 ms for the full table versus 35.0 ms for the two-row version (24 % more
+relative to the two-row time, 19.5 % less relative to the full-table time).
+
 
 **Memory.** The heap peak equals the size of the DP arrays exactly: (4000+1)<sup>2</sup> · 4 =
 64,032,004 bytes for the full table versus 4 · 4001 · 4 = 64,016 bytes for the two-row
@@ -269,11 +276,8 @@ start-up, already 4244 KB, and these arrays never push it higher. For them the h
 is the meaningful measurement.
 
 **Scenario 1.** ("Uniform" strings draw each letter with probability 1/26; "English" strings
-use the English letter frequencies.) Every optimum had 0 mismatches, and this is forced here.
-In an optimal pair, the part up to the first mismatch must have score ≥ 0, otherwise removing
-it would raise the score. With w = 1 and δ = 10 this requires at least 10 consecutive matches,
-i.e. an exact common substring of length ≥ 10. But such a substring of length a scores a, and
-every optimum scored at most 6 (Table 1.4). So the answer is the longest exact common substring.
+use the English letter frequencies.) Every optimum had 0 mismatches, and this is forced here. Consider the prefix of an optimal pair that ends at, and includes, its first mismatch. If r matches precede that mismatch, this prefix scores r − 10. It cannot be negative, since deleting it would strictly raise the score, so r ≥ 10. But then those r matches form an exact common substring of score r ≥ 10, while every optimum scored at most 6 (Table 1.4). So no optimum contains a mismatch, and the answer is the longest exact common substring.
+
 Let q be the probability that two random letters are equal: q = 1/26 ≈ 0.038 (uniform) and
 q = Σ p<sub>l</sub><sup>2</sup> ≈ 0.0655 (English). The rough estimate log<sub>1/q</sub>(nm) gives 4.2 and
 5.1 at 1000 × 1000, and 5.5 and 6.6 at 8000 × 8000. The observed lengths are at most 1.3 below
@@ -363,10 +367,9 @@ We show D[i][j] = t + 1.
 ending at (i−1, j), (i, j−1) and (i−1, j−1). So each neighbor value is at least k − 1, which
 gives t ≥ k − 1, i.e. k ≤ t + 1. For k = 1 the bound holds because t ≥ 0.
 
-*D[i][j] ≥ t + 1.* Each neighbor has an all-zero square of side at least t ending at it, so it
-also has one of side exactly t (shrink toward the corner). Since D[i−1][j−1] ≥ t, we have
-i − t ≥ 0 and j − t ≥ 0, so the (t+1) × (t+1) square with rows i−t..i and columns j−t..j lies
-inside B. A cell (r, c) of this square is
+*D[i][j] ≥ t + 1.*  If t = 0, the zero cell B[i][j] itself is a 1 × 1 all-zero square, so the claim holds. Now suppose t ≥ 1. Each neighbor has an all-zero square of side at least t ending at it, so it also has one of side exactly t by taking the t × t sub-square with the same bottom-right corner. Since D[i−1][j−1] ≥ t, we have i − t ≥ 0 and j − t ≥ 0, so the (t+1) × (t+1) square with rows i−t..i and columns j−t..j lies inside B.
+
+A cell (r, c) of this square is
 
 - (r, c) = (i, j): zero by assumption;
 - r = i, c < j: covered by the t × t square ending at (i, j−1) (rows i−t+1..i, columns j−t..j−1);
@@ -389,7 +392,7 @@ the corner and the side length determine the square. If k* = 0, there is no all-
 
 ### 2.6 Complexity
 
-**Time: Θ(mn).** Each cell needs one test of B[i][j], one minimum of three values, and one
+**Time: Θ(mn).** The running time is O(nm); in fact it is Θ(nm). Each cell needs one test of B[i][j], one minimum of three values, and one
 comparison with the best value so far, so O(1) per cell. All mn cells are computed for every
 input, so the total is Θ(mn). Extraction is O(1), since the corner and side are already known.
 
@@ -417,6 +420,8 @@ with known answer k = 3 at top-left (0, 1) (0-indexed) also passed. `verify` run
 measurements, so its memory is not included in them.
 
 ### 2.8 Experimental setup
+
+Row and column indices in Problem 2 are 0-based.
 
 The sizes were 10 × 10, 10 × 100, 10 × 1000, 100 × 1000 and 1000 × 1000. Each entry is set to 1
 independently with probability p ∈ {0.5, 0.1, 0.01} (fixed seed 20261103). Several values of p
@@ -485,10 +490,7 @@ P(k* ≥ k) ≤ E[N<sub>k</sub>]. Setting E[N<sub>k</sub>] = 1 and approximating
 k ≈ sqrt( ln(mn) / -ln(1-p) )
 ```
 
-Above this value E[N<sub>k</sub>] < 1 and keeps decreasing, so the estimate is an approximate
-upper bound. For 1000 × 1000 it gives 4.5, 11.5 and 37.1 for p = 0.5, 0.1 and 0.01; the
-observed values are 4, 10 and 30, all below it. (For m = 10, k* is capped by min(m, n) = 10,
-which is reached at p = 0.01.) The estimate grows only like sqrt(ln(mn)), so k* increases very
+Above this value E[N<sub>k</sub>] < 1 and keeps decreasing. Thus the estimate gives a first-moment threshold for the typical scale of k*, rather than a deterministic upper bound. For 1000 × 1000, the threshold estimate gives 4.5, 11.5 and 37.1 for p = 0.5, 0.1 and 0.01; the observed values are 4, 10 and 30, respectively. (When m = 10, k* is capped by min(m, n) = 10; this cap is reached at p = 0.01 for the 10 × 100 and 10 × 1000 instances, while the 10 × 10 instance has k* = 9.) The estimate grows only like sqrt(ln(mn)), so k* increases very
 slowly with the matrix size but strongly as p decreases.
 
 ---
