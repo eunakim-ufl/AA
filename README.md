@@ -261,7 +261,7 @@ We record `k*` and the corner `(i*, j*)` where it first occurs. The answer is ro
 
 ### 2.7 Implementation and validation
 
-`largestZeroSquare` is the iterative two-row DP. `verify` is an independent checker built on 2D prefix sums. It confirms that (1) the reported square lies inside B and is all zeros, and (2) no (k+1) × (k+1) all-zero square exists anywhere in B, which proves optimality. Every experiment passed verification. A hand-made 5 × 6 test with known answer k = 3 at top-left (0, 1) also passed.
+`largestZeroSquare` is the iterative two-row DP. `verify` is an independent checker built on 2D prefix sums. It confirms that (1) the reported square lies inside B and is all zeros, and (2) no (k+1) × (k+1) all-zero square exists anywhere in B, which proves optimality. Every experiment passed verification. A hand-made 5 × 6 test with known answer k = 3 at top-left (0, 1) (0-indexed) also passed.
 
 ### 2.8 Experimental setup
 
