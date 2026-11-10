@@ -70,6 +70,7 @@ OPT = max over all i, j of D[i][j]
 ```
 OPT = Optimal Solution(score)
 
+
 ### 1.4 Correctness
 
 We prove by induction on i + j that `D[i][j]` is the best score of a pair ending at (i, j).
@@ -92,59 +93,77 @@ and the empty pair scores 0 = `D[0][0]`. Hence OPT = max D. The cells are filled
 by row, so `D[i-1][j-1]` is always computed before `D[i][j]`.
 
 Handout example: "CAABC" (from position 3 of X) against "CAACC" (from position 4 of Y)
-gives w<sub>C</sub> + w<sub>A</sub> + w<sub>A</sub> − δ + w<sub>C</sub> = 2w<sub>C</sub> + 2w<sub>A</sub> − δ.
-With the Scenario 2 weights and δ = 5814 the program prints 2·2782 + 2·8167 − 5814 = 16084.
-This only checks the scoring rule. It is not the optimum: for δ = 5814 the best pair is
-"AABCAA" / "ABBCAA" with score 3w<sub>A</sub> + w<sub>B</sub> + w<sub>C</sub> − δ = 22961.
+gives w<sub>C</sub> + w<sub>A</sub> + w<sub>A</sub> − δ + w<sub>C</sub> = 2w<sub>C</sub> + 2w<sub>A</sub> − δ,
+since only the fourth position (B against C) is a mismatch. This matches the score
+defined in 1.1. A numerical check with the actual weights is given in Section 1.8 (Experimental setup).
+
 
 ### 1.5 Extracting the optimal pair
 
-While filling the table we keep the cell `(i*, j*)` with the largest value; with ties,
-the first one reached in row order is kept. If the largest value is 0, the answer is the
-empty pair (L = 0).
+While filling the table we keep the cell `(i*, j*)` with the largest value; with ties, the first one reached in row order is kept. If the largest value is 0, the answer is the empty pair (L = 0).
 
-If `D[i][j] > 0`, the maximum in the recurrence came from the second term, so
-`D[i][j] = D[i-1][j-1] + s(x_i, y_j)`. Starting from `(i*, j*)` we step to
-`(i*-1, j*-1)`, `(i*-2, j*-2)`, … while D > 0, and count the visited cells as L.
+If `D[i][j] > 0`, the maximum in the recurrence came from the second term, so `D[i][j] = D[i-1][j-1] + s(x_i, y_j)`. Starting from `(i*, j*)` we step to `(i*-1, j*-1)`, `(i*-2, j*-2)`, … while D > 0, and count the visited cells as L.
 The walk stops at the cell `(i*-L, j*-L)`, which has D = 0; this happens at row or
 column 0 at the latest. The pair starts right after that cell:
 `X[i*-L+1 .. i*]` and `Y[j*-L+1 .. j*]`. Adding the L equations
 `D[i][j] = D[i-1][j-1] + s(x_i, y_j)` along the walk, and using D = 0 at the stopping
 cell, shows that the score of this pair is exactly `D[i*][j*]`.
 
-Two-row version: with each value we also store the length of its pair,
-`R[i][j] = R[i-1][j-1] + 1` if `D[i][j] > 0` and 0 otherwise. R counts the consecutive
-positive cells on the diagonal, so `R[i*][j*]` equals the L found by the walk above.
-Only two rows of D and R are kept, plus the best value, `(i*, j*)` and its R.
-Since the tie rule is also the same, both versions return the same pair. This was
-confirmed on every test where both were run (`full_eq_lin = yes`).
+**Optional space-saving variant (not required by the assignment).** The full table above is enough for both the DP and the extraction. 
+To reduce memory, I also implemented a two-row version: with each value we also store the length of its pair, `R[i][j] = R[i-1][j-1] + 1` if `D[i][j] > 0` and 0 otherwise. 
+
+R counts the consecutive positive cells on the diagonal, so `R[i*][j*]` equals the L found by the walk above. Only two rows of D and R are kept, plus the best value, `(i*, j*)` and its R. Since the tie rule is also the same, both versions return the same pair. This was confirmed on every test where both were run (`full_eq_lin = yes`).
 
 
 ### 1.6 Complexity
 
-**Time Θ(nm).** There are (n+1)(m+1) cells, each computed with a constant number of operations. The walk back takes at most min(n, m) steps.
+**Time: Θ(nm).** The DP table has (n+1)(m+1) cells. Row 0 and column 0 are set to 0. Each of
+the other nm cells needs one addition, one comparison with 0, and one comparison with the best
+value so far (to record `(i*, j*)`), so O(1) per cell. All nm cells are computed for every
+input, so filling the table takes Θ(nm). The traceback takes at most min(n, m) steps, and
+reading the input takes Θ(n + m). The total is Θ(nm) for n, m ≥ 1.
 
-| Version | Arrays | Space |
+**Space.**
+
+| Version | Arrays | Auxiliary space |
 |---|---|---|
 | Full table | (n+1)(m+1) four-byte integers | Θ(nm) |
-| Two-row | 4 arrays of m+1 four-byte integers | Θ(m); Θ(min(n, m)) if Y is the shorter string |
-| Input | n + m bytes | Θ(n + m) |
+| Two-row (optional) | 2 rows of D + 2 rows of R, each m+1 four-byte integers | Θ(m) |
 
-No score can exceed max<sub>l</sub> w<sub>l</sub> · min(n, m) ≤ 12702 · 8000 = 101,616,000 < 2<sup>31</sup> − 1, so `int` cannot overflow. The program checks this bound before each run.
+Y (length m) is the string along the columns. The two-row auxiliary space can be reduced to
+Θ(min(n, m)) by placing the shorter string along the columns. Both versions also store the
+input strings, n + m bytes, i.e. Θ(n + m).
 
-### 1.7 Validation
+**Overflow.** Every `D[i][j]` is nonnegative and at most w<sub>max</sub> · min(n, m), where
+w<sub>max</sub> = max<sub>l</sub> w<sub>l</sub>. For the longest input used in the experiments (8000),
+this is 12702 · 8000 = 101,616,000 < 2<sup>31</sup> − 1, so 32-bit signed integers are enough for all
+experiments. The program checks this bound before each run.
 
-`solveFull` (full table + walk back) and `solveLinear` (two rows) were compared with `bruteForce`, which tries every start pair and every length in O(nm · min(n, m)) time. The test used 500 random cases with n, m ≤ 60, covering both scenarios and random δ. Half of the cases used a 3-letter alphabet so that long pairs containing mismatches occur often. All 500 passed.
 
-In every experiment the program also recomputed the score of the reported pair from scratch (`score_ok`) and compared the two solvers (`full_eq_lin`). All checks passed.
+**Validation.** `bruteForce` tries every start pair and every length in O(nm · min(n, m))
+time and serves as an independent reference. `selfTest` compares it with both DP versions
+on 500 random cases (fixed seed 7), with n and m drawn independently from 1..60. The cases
+are split evenly (125 each) between Scenario 1 (δ = 10) and Scenario 2 (δ chosen at random
+from δ<sub>0</sub>, …, δ<sub>11</sub>), and between English-frequency letters and a 3-letter alphabet.
+The 3-letter alphabet makes matches frequent, which produces long pairs containing
+mismatches and many tied optima, the cases where the recurrence or the tie rule is most
+likely to go wrong. A case passes only if
+(1) the scores of `solveFull` and `solveLinear` both equal the brute-force optimum,
+(2) the two DP versions return the same start positions and length, and
+(3) the score of that pair, recomputed directly from the strings, equals the reported score.
+(1) and (3) together show that the returned pair is optimal. Positions are not compared with
+the brute force, because it breaks ties by the earliest start while the DP breaks ties by the
+earliest end cell, so the two may return different pairs that are equally optimal.
+All 500 cases passed. In the main experiments, `score_ok` (recomputed score) and
+`full_eq_lin` (same pair from both DP versions) were "yes" on every row where they apply;
+for 8000 × 8000 only the two-row version was run, so `full_eq_lin` is n/a there.
 
-Handout strings: in Scenario 1 the optimum is "BCAA" (position 2 in X, position 3 in Y, score 4). "BCAA" also appears at position 6 of X, so the optimum is not unique, and the program reports the first one. In Scenario 2 with δ = 5814 the optimum is "AABCAA" / "ABBCAA" with score 3·8167 + 1492 + 2782 − 5814 = 22961. It contains one mismatch, because the high weights on the surrounding matches outweigh the penalty.
 
 ### 1.8 Experimental setup
 
 **Scenario 1:** w<sub>l</sub> = 1 for all letters, δ = 10. One mismatch cancels ten matches, so including a mismatch only helps if it brings in more than ten extra matches.
 
-**Scenario 2:** w<sub>l</sub> is proportional to the frequency of letter l in English. We used the standard table by Lewand (*Cryptological Mathematics*), in units of 0.001 %:
+**Scenario 2:** w<sub>l</sub> is proportional to the frequency of letter l in English. I used the standard table by Lewand (*Cryptological Mathematics*), in units of 0.001 %:
 
 | Letter | A | B | C | D | E | F | G | H | I | J | K | L | M |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -162,6 +181,16 @@ delta_t = 74 + t * (12702 - 74) / 11 = 74 + 1148 t,     t = 1..10
 ```
 
 The endpoints δ = 74 (t = 0) and δ = 12702 (t = 11) were also run.
+
+**Check on the handout strings.** For X = "ABCAABCAA" and Y = "ABBCAACCBBBBBB":
+
+- Scenario 2, δ = 5814 (t = 5): the handout pair "CAABC" / "CAACC" scores
+  2·2782 + 2·8167 − 5814 = 16084, as printed by the program. This pair is not optimal.
+  The optimum is "AABCAA" (position 4 of X) / "ABBCAA" (position 1 of Y), with one mismatch
+  and score 3·8167 + 1492 + 2782 − 5814 = 22961.
+- Scenario 1 (w = 1, δ = 10): one mismatch costs more than any common substring of length
+  up to 9 can gain, so the optimum has no mismatches. It is "BCAA" (position 2 of X, position 3
+  of Y) with score 4. This optimum is not unique, since "BCAA" also starts at position 6 of X.
 
 **Data:** random strings with letters drawn either uniformly from the 26 letters or from the English distribution above. Sizes were n = m ∈ {100, 500, 1000, 2000, 4000, 8000}, plus one unequal case, 1000 × 4000. The seed is fixed (20261103). The full table was run up to 4000 × 4000 (64 MB); for 8000 × 8000 only the two-row version was run.
 
@@ -223,34 +252,72 @@ Uniform letters, same sizes: δ = 74 gave length 1635 with 1543 mismatches; δ =
 
 ### 1.10 Analysis
 
-**Time.** Over a 6400-fold increase in n·m, the time per cell stays between 2.1 and 2.4 ns (Table 1.1), and the log–log plot is a line of slope 1. This agrees with Θ(nm). The 2000 × 2000 and 1000 × 4000 inputs have the same number of cells and similar times, so the cost depends on n·m, not on the shape. The full-table and two-row versions run at similar speed. Their difference stays within about 20 % and its direction is not consistent across experiments, so we draw no conclusion from it.
+**Time.** From 100 × 100 to 8000 × 8000 (a 6400-fold increase in n·m), the time per cell
+stays between 2.1 and 2.4 ns (Table 1.1), and the log–log plot has slope close to 1,
+consistent with Θ(nm). The 2000 × 2000 and 1000 × 4000 inputs have the same number of cells
+and similar times, so the cost depends on n·m, not on the two lengths separately. In these
+size experiments the full-table and two-row versions differ by at most about 20 %, with no
+consistent direction (the δ sweep is discussed at the end of this section).
 
-**Memory.** The heap peak equals the size of the DP arrays exactly. For example, (4000+1)<sup>2</sup> · 4 = 64,032,004 bytes for the full table versus 4 · 4001 · 4 = 64,016 bytes for the two-row version, a factor of 1000. For the full table, ΔRSS minus the heap peak is 1342, 1423 and 1269 KB for the three largest sizes. This is a roughly constant overhead whose source we did not identify. Between 2000 × 2000 and 4000 × 4000, ΔRSS grows by 46,736 KB against 46,891 KB for the array, a 99.7 % match. For small arrays ΔRSS shows nothing: `ru_maxrss` is the highest RSS the process has ever had, about 4.2 MB right after start-up, and arrays that do not exceed that peak leave it unchanged. For the two-row version, the heap peak is therefore the meaningful measurement.
+**Memory.** The heap peak equals the size of the DP arrays exactly: (4000+1)<sup>2</sup> · 4 =
+64,032,004 bytes for the full table versus 4 · 4001 · 4 = 64,016 bytes for the two-row
+version (two rows each of D and R), a factor of 1000. For the full table, ΔRSS grows by
+46,736 KB from 2000 × 2000 to 4000 × 4000, while the array grows by 46,891 KB (99.7 %).
+On top of the array there is a roughly constant extra 1269–1423 KB whose source I did not
+identify. The two-row arrays do not show up in ΔRSS: `ru_maxrss` is the highest RSS since
+start-up, already 4244 KB, and these arrays never push it higher. For them the heap peak
+is the meaningful measurement.
 
-**Scenario 1.** No optimum contained a mismatch, so in practice the answer is the longest exact common substring. Its length grows very slowly (Table 1.4). Let q be the probability that two random letters are equal: q = 1/26 ≈ 0.038 for uniform letters and q = Σ p<sub>l</sub><sup>2</sup> ≈ 0.0655 for English. A rough estimate of the longest exact match is log<sub>1/q</sub>(nm). It gives 4.2 (uniform) and 5.1 (English) at 1000 × 1000, and 5.5 and 6.6 at 8000 × 8000. The observed lengths are 0 to 1.3 below these values, so the estimate is slightly high but follows the logarithmic growth. Because English has the larger q, its matches are longer.
+**Scenario 1.** ("Uniform" strings draw each letter with probability 1/26; "English" strings
+use the English letter frequencies.) Every optimum had 0 mismatches, and this is forced here.
+In an optimal pair, the part up to the first mismatch must have score ≥ 0, otherwise removing
+it would raise the score. With w = 1 and δ = 10 this requires at least 10 consecutive matches,
+i.e. an exact common substring of length ≥ 10. But such a substring of length a scores a, and
+every optimum scored at most 6 (Table 1.4). So the answer is the longest exact common substring.
+Let q be the probability that two random letters are equal: q = 1/26 ≈ 0.038 (uniform) and
+q = Σ p<sub>l</sub><sup>2</sup> ≈ 0.0655 (English). The rough estimate log<sub>1/q</sub>(nm) gives 4.2 and
+5.1 at 1000 × 1000, and 5.5 and 6.6 at 8000 × 8000. The observed lengths are at most 1.3 below
+these values and grow logarithmically in the same way. English has the larger q, so its
+matches are longer.
 
-**Scenario 2.** The change with δ can be understood from the expected score of one step along a diagonal of two random strings:
+**Scenario 2.** The weights are the English-frequency weights for both string distributions.
+The effect of δ can be explained by the expected score of one step along a diagonal of two
+random strings:
 
 ```
 E[s] = sum_l p_l^2 * w_l  -  delta * (1 - sum_l p_l^2)
 ```
 
-If E[s] > 0, the running sum tends to grow, and the best pair can cover most of a diagonal. If E[s] < 0, it tends to fall, and only short segments survive. Setting E[s] = 0 gives the threshold δ<sub>c</sub> ≈ 154 for uniform letters and δ<sub>c</sub> ≈ 573 for English letters (calculated from the weight table). δ = 74 is below both thresholds, and indeed the optimum covered 1852 (English) and 1635 (uniform) of the 2000 positions. All ten intermediate values are above both thresholds and gave short pairs. This E[s] argument is a heuristic explanation, not a proof.
+If E[s] > 0, the running sum tends to grow, so long segments are favored. If E[s] < 0, long
+segments tend to accumulate negative score, so shorter segments are generally favored.
+E[s] = 0 gives δ<sub>c</sub> ≈ 154 (uniform) and δ<sub>c</sub> ≈ 573 (English). At δ = 74, below both
+thresholds, the optimum covered 1852 (English) and 1635 (uniform) of the 2000 positions.
+All ten intermediate values are above both thresholds and gave much shorter pairs. This is
+a heuristic explanation, not a guarantee about the optimal length.
 
-The number of mismatches in the optimum can never increase when δ increases. Let A be optimal for δ<sub>1</sub> and B optimal for δ<sub>2</sub> > δ<sub>1</sub>, with total match weights W<sub>A</sub>, W<sub>B</sub> and mismatch counts k<sub>A</sub>, k<sub>B</sub>. Optimality gives
+The number of mismatches in the optimum cannot increase with δ. Let A be optimal for
+δ<sub>1</sub> and B optimal for δ<sub>2</sub> > δ<sub>1</sub>, with match weights W<sub>A</sub>, W<sub>B</sub> and
+mismatch counts k<sub>A</sub>, k<sub>B</sub>. Then
 
 ```
 W_A - k_A * delta1  >=  W_B - k_B * delta1
 W_B - k_B * delta2  >=  W_A - k_A * delta2
 ```
 
-Adding the two inequalities and cancelling W<sub>A</sub> + W<sub>B</sub> leaves (k<sub>A</sub> − k<sub>B</sub>)(δ<sub>2</sub> − δ<sub>1</sub>) ≥ 0, so k<sub>A</sub> ≥ k<sub>B</sub>. The data agree: 1702 → 57 → 10 → 7 → 1 → 0 (English) and 1543 → 4 → 0 (uniform). The length of the optimum is not covered by this argument, although it also decreased here.
+Adding the two gives (k<sub>A</sub> − k<sub>B</sub>)(δ<sub>2</sub> − δ<sub>1</sub>) ≥ 0, so k<sub>A</sub> ≥ k<sub>B</sub>.
+The data agree: 1702 → 57 → 10 → 7 → 1 → 0 (English) and 1543 → 4 → 0 (uniform).
+The length of the optimum also decreased, but this argument does not prove that.
 
-When the optimal pair stays the same between two δ values, its score changes by −(mismatches) × Δδ. For t = 4 → 5 → 6 (1 mismatch) the score drops by exactly 1148 each step. For the uniform strings at t = 1 → 2 (4 mismatches) it drops by 4592 = 4 · 1148. Once the optimum has no mismatches, its score no longer depends on δ, and it stays fixed for all larger δ (t ≥ 7). The surviving pairs are made of high-weight letters (E, T, S, O), which is what frequency-based weights should produce.
+While the optimal pair stays the same, its score changes by −(mismatches) × Δδ: it drops by
+exactly 1148 per step for English at t = 4 → 5 → 6 (1 mismatch), and by 4592 = 4 · 1148 for
+uniform at t = 1 → 2 (4 mismatches). Once the optimum has no mismatches, its score no longer
+depends on δ while every other pair's score can only fall, so it stays optimal for all larger
+δ: "EEB" with score 2 · 12702 + 1492 = 26896 for uniform (t ≥ 3), and "ESOTE" with score
+48294 for English (t ≥ 7), a pair made of frequent, high-weight letters.
 
-δ also changed the running time by a constant factor. The two-row solver took 22.6 ms at δ = 1222 and 8.7 ms at δ = 12702, while the full-table solver stayed between 8.0 and 9.2 ms. We suspect branch misprediction in the two-row loop, but did not verify it. The asymptotic cost is Θ(nm) in every case.
-
----
+δ also changed the running time of the two-row solver: 22.6 ms at δ = 1222 versus 8.7 ms at
+δ = 12702, while the full-table solver stayed between 8.0 and 9.2 ms. The cause may be
+branch misprediction, but I did not verify this. The cost is Θ(nm) in every case.
 
 
 
@@ -259,11 +326,14 @@ When the optimal pair stays the same between two δ values, its score changes by
 
 ### 2.1 Problem
 
-Given an m × n Boolean matrix B (non-zero entries stored as 1), find the largest k such that B contains a k × k block of consecutive rows and columns that is all 0, and return its position.
+Given an m × n Boolean matrix B (non-zero entries stored as 1), find the largest k such that
+B contains a k × k block of consecutive rows and columns that is all 0, and return its
+position (top-left corner, 0-indexed). If B has no zero entry, the answer is k = 0.
 
 ### 2.2 Optimization function
 
-`D[i][j]` is the side length of the largest all-zero square whose **bottom-right corner** is (i, j).
+For 0 ≤ i < m and 0 ≤ j < n, `D[i][j]` is the side length of the largest all-zero square whose
+**bottom-right corner** is (i, j), and 0 if B[i][j] = 1.
 
 ### 2.3 Recurrence (Bellman equations)
 
@@ -273,18 +343,31 @@ D[i][j] = 0                                               if B[i][j] = 1
         = 1 + min( D[i-1][j], D[i][j-1], D[i-1][j-1] )    otherwise
 k*      = max over all i, j of D[i][j]
 ```
+k* = optimal solution k
 
-The code adds a row and a column of zeros in front, so the boundary case is handled by the general formula.
+The code adds an extra row and column of D values equal to 0 in front of the table, so the boundary case is handled by the general formula (1 + min(0, …) = 1).
 
 ### 2.4 Correctness
 
-If B[i][j] = 1, no all-zero square can end at (i, j), so D = 0. In the boundary case with B[i][j] = 0, the only square ending at (i, j) is the cell itself, so D = 1.
+We prove the recurrence by induction in row-major order; the three neighbors of (i, j) come
+earlier in this order, so their D values are correct by the induction hypothesis.
 
-Now let B[i][j] = 0 with i, j ≥ 1, and let t = min(D[i−1][j], D[i][j−1], D[i−1][j−1]). We show D[i][j] = t + 1.
+If B[i][j] = 1, no all-zero square can end at (i, j), so D = 0. In the boundary case with
+B[i][j] = 0, the only square ending at (i, j) is the cell itself, so D = 1.
 
-*D[i][j] ≤ t + 1.* Take an all-zero k × k square ending at (i, j) with k ≥ 2. Removing its last row and its last column in different ways gives three all-zero (k−1) × (k−1) squares, ending at (i−1, j), (i, j−1) and (i−1, j−1). So each of the three neighbor values is at least k − 1. This gives t ≥ k − 1, i.e. k ≤ t + 1. For k = 1 the bound holds trivially.
+Now let B[i][j] = 0 with i, j ≥ 1, and let t = min(D[i−1][j], D[i][j−1], D[i−1][j−1]).
+We show D[i][j] = t + 1.
 
-*D[i][j] ≥ t + 1.* Each neighbor has an all-zero square of side at least t ending at it, so it also has one of side exactly t (shrink toward the corner). Consider the (t+1) × (t+1) square with rows i−t..i and columns j−t..j, and a cell (r, c) in it:
+*D[i][j] ≤ t + 1.* Take an all-zero k × k square ending at (i, j) with k ≥ 2. Removing one row
+(top or bottom) and one column (left or right) gives three all-zero (k−1) × (k−1) squares,
+ending at (i−1, j), (i, j−1) and (i−1, j−1). So each neighbor value is at least k − 1, which
+gives t ≥ k − 1, i.e. k ≤ t + 1. For k = 1 the bound holds because t ≥ 0.
+
+*D[i][j] ≥ t + 1.* Each neighbor has an all-zero square of side at least t ending at it, so it
+also has one of side exactly t (shrink toward the corner). Since D[i−1][j−1] ≥ t, we have
+i − t ≥ 0 and j − t ≥ 0, so the (t+1) × (t+1) square with rows i−t..i and columns j−t..j lies
+inside B. A cell (r, c) of this square is
+
 - (r, c) = (i, j): zero by assumption;
 - r = i, c < j: covered by the t × t square ending at (i, j−1) (rows i−t+1..i, columns j−t..j−1);
 - r < i, c = j: covered by the square ending at (i−1, j) (rows i−t..i−1, columns j−t+1..j);
@@ -292,37 +375,57 @@ Now let B[i][j] = 0 with i, j ≥ 1, and let t = min(D[i−1][j], D[i][j−1], D
 
 So every cell is 0, and a (t+1) × (t+1) all-zero square ends at (i, j).
 
-Every square has a bottom-right corner, so `k*` = max D is the answer. Row-major order computes the three neighbors before (i, j).
+Each `D[i][j]` is the side of an actual all-zero square, so max D is at most the answer.
+Conversely, every all-zero square ends at some cell (i, j), so its side is at most `D[i][j]`.
+Hence k* = max D.
 
 ### 2.5 Extracting the optimal square
 
-We keep `k*` and the first cell `(i*, j*)` where it occurs. The square is rows `i*-k*+1 .. i*`, columns `j*-k*+1 .. j*`. No walk back is needed, because the corner and the side length determine the square.
+While filling the table row by row (only the current and previous rows of D are kept), we keep
+`k*` and the first cell `(i*, j*)` in row-major order where it occurs (strict comparison, so
+ties keep the earlier cell). The square is rows `i*-k*+1 .. i*`, columns `j*-k*+1 .. j*`. It is all zero by the
+second half of 2.4, which uses exactly these rows and columns. No walk back is needed, because
+the corner and the side length determine the square. If k* = 0, there is no all-zero square.
 
 ### 2.6 Complexity
 
-**Time Θ(mn):** one test and one minimum of three values per cell.
+**Time: Θ(mn).** Each cell needs one test of B[i][j], one minimum of three values, and one
+comparison with the best value so far, so O(1) per cell. All mn cells are computed for every
+input, so the total is Θ(mn). Extraction is O(1), since the corner and side are already known.
 
-**Space.** Following the hint, B is stored with one byte per entry (`uint8_t`). The DP values do not fit in a byte, since k can be as large as min(m, n) = 1000 > 255. Each row of D depends only on the row above, so we keep two rows of four-byte integers.
+**Space.** Following the hint, B is stored with one byte per entry (`uint8_t`). The DP values
+need more than a byte, because k can be as large as min(m, n), which is 1000 > 255 in the
+largest experiment. Each row of D depends only on the row above, so only two rows of
+four-byte integers are kept.
 
 | Part | Size | Space |
 |---|---|---|
 | Matrix B | mn bytes | Θ(mn) |
-| Two DP rows | 2(n+1) · 4 bytes | Θ(n) |
+| Two DP rows | 2(n+1) · 4 bytes | Θ(n) extra |
 | Total | mn + 8(n+1) bytes | Θ(mn) |
 
-The extra space is Θ(n), or Θ(min(m, n)) if the matrix is processed so that rows are the longer side.
+The extra space could be reduced to Θ(min(m, n)) by running the DP along the shorter
+dimension; the implementation does not do this. The total stays Θ(mn) because of B.
 
 ### 2.7 Validation
 
-`verify` checks every result independently with 2D prefix sums. It confirms that (1) the reported square lies inside B and contains only zeros, and (2) no all-zero (k*+1) × (k*+1) square exists anywhere in B. Together these prove the answer is optimal. All experiments passed. A hand-made 5 × 6 matrix with known answer k = 3 at top-left (0, 1) (0-indexed) also passed.
+`verify` checks every result independently with 2D prefix sums. It confirms that (1) the
+reported square lies inside B and contains only zeros, and (2) no all-zero (k*+1) × (k*+1)
+square exists in B. Any larger all-zero square would contain one of size (k*+1) × (k*+1), so
+(1) and (2) together prove that k* is optimal. All experiments passed. A hand-made 5 × 6 matrix
+with known answer k = 3 at top-left (0, 1) (0-indexed) also passed. `verify` runs after the
+measurements, so its memory is not included in them.
 
 ### 2.8 Experimental setup
 
-The sizes were 10 × 10, 10 × 100, 10 × 1000, 100 × 1000 and 1000 × 1000. Each entry is set to 1 independently with probability p ∈ {0.5, 0.1, 0.01}. Several p values are used because at p = 0.5 the answer is only 2–4. Timing is the same as in Problem 1, except at least 5 runs are averaged. Memory was measured in a separate process for each configuration.
+The sizes were 10 × 10, 10 × 100, 10 × 1000, 100 × 1000 and 1000 × 1000. Each entry is set to 1
+independently with probability p ∈ {0.5, 0.1, 0.01} (fixed seed 20261103). Several values of p
+are used because at p = 0.5 the answer is only 2–4. Timing is the same as in Problem 1, except
+that at least 5 runs are averaged. Memory was measured in a separate process for each configuration.
 
 ### 2.9 Results
 
-**Table 2.1** Running time in µs, with k* in parentheses.
+**Table 2.1** Running time in µs, with k* in parentheses (from `results_p2.csv`).
 
 | m × n | cells | p = 0.5 | p = 0.1 | p = 0.01 |
 |---|---|---|---|---|
@@ -332,7 +435,12 @@ The sizes were 10 × 10, 10 × 100, 10 × 1000, 100 × 1000 and 1000 × 1000. Ea
 | 100 × 1000 | 10<sup>5</sup> | 511.615 (4) | 292.002 (9) | 342.590 (33) |
 | 1000 × 1000 | 10<sup>6</sup> | 5118.774 (4) | 2909.975 (10) | 3418.036 (30) |
 
-**Table 2.2** Memory (the same for all p).
+Table 2.1 comes from a single run of all configurations (`results_p2.csv`). The memory runs
+(`mem_p2.csv`) start a separate process for each configuration, which generates different
+random matrices, so their k* values can differ; the memory figures do not depend on k*.
+
+
+**Table 2.2** Memory. Theory and heap peak do not depend on p. (from `mem_p2.csv`)
 
 | m × n | theory (B) | heap peak (B) | ΔRSS (KB) |
 |---|---|---|---|
@@ -340,30 +448,60 @@ The sizes were 10 × 10, 10 × 100, 10 × 1000, 100 × 1000 and 1000 × 1000. Ea
 | 10 × 100 | 1,808 | 1,808 | 0 |
 | 10 × 1000 | 18,008 | 18,008 | 0 |
 | 100 × 1000 | 108,008 | 108,008 | 0 |
-| 1000 × 1000 | 1,008,008 | 1,008,008 | 2,292 – 2,416 (three runs) |
+| 1000 × 1000 | 1,008,008 | 1,008,008 | 2,292 – 2,416 (one run per p) |
 
 ![Figure 2](p2_plots.png)
 
-**Figure 2.** Left: running time vs. m·n for three values of p (log–log). Right: memory vs. m·n; theory and heap peak coincide. ΔRSS values of 0 are plotted at 1 KB because 0 cannot be shown on a log axis.
+**Figure 2.** Left: running time vs. m·n for three values of p (log–log). Right: memory vs. m·n
+for p = 0.1; theory and heap peak coincide. ΔRSS values of 0 are plotted at 1 KB because 0
+cannot be shown on a log axis.
 
 ### 2.10 Analysis
 
-**Time.** All three lines have slope about 1 on the log–log plot. For p = 0.1 the time per cell stays between 2.5 and 2.9 ns from 10<sup>2</sup> to 10<sup>6</sup> cells, which agrees with Θ(mn).
+**Time.** For p = 0.1 and p = 0.01 the time per cell stays within 2.5–2.9 ns and 3.1–3.4 ns
+from 10<sup>2</sup> to 10<sup>6</sup> cells, and the log–log lines have slope close to 1, consistent
+with Θ(mn). For p = 0.5 the time per cell is 1.2–2.0 ns on the two smallest matrices,
+4.4 ns at 10<sup>4</sup> cells and 5.1 ns from 10<sup>5</sup> cells on, so its line is steeper in
+between and the lines cross. The two smallest runs take under 4 µs and process the same tiny
+matrix many times in a row, so I do not treat them as representative.
 
-The content of the matrix changes only the constant factor. On the large matrices one cell costs about 5.1 ns at p = 0.5, 2.9 ns at p = 0.1 and 3.4 ns at p = 0.01. At p = 0.01 more cells take the zero branch, which does more work (a minimum of three values and a comparison with the best). At p = 0.5 the two branches are equally likely, so the CPU cannot predict them well. This explanation is our guess and was not measured. On the two smallest matrices p = 0.5 is the fastest, so the lines cross. These runs take under 4 µs, and the same tiny matrix is processed many times in a row, so they are not representative.
+The matrix content changes only the constant factor; k* has no effect, since every cell is
+computed. On the two largest matrices one cell costs 5.1 ns (p = 0.5), 2.9 ns (p = 0.1) and
+3.4 ns (p = 0.01). A possible explanation, which I did not measure: at p = 0.5 the branch on
+B[i][j] is unpredictable, and at p = 0.01 more cells are zero (99 % instead of 90 %) and need
+the minimum of three neighbors.
 
-**Memory.** The heap peak equals mn + 8(n+1) bytes exactly for every size. ΔRSS is 0 up to 10<sup>5</sup> cells. Our guess is that these allocations were served from memory the process already had resident, or that Linux updates its RSS counters in batches; we did not confirm the cause. At 10<sup>6</sup> cells, ΔRSS exceeds the array size (984 KB) by 1308–1432 KB, close to the overhead seen in Problem 1.
+**Memory.** The heap peak equals mn + 8(n+1) bytes exactly for every size. ΔRSS is 0 up to
+10<sup>5</sup> cells (heap peak at most 106 KB). Possible causes are that these allocations used
+pages the process already had resident, or that the kernel updates its RSS counter in
+batches; I did not confirm either. At 10<sup>6</sup> cells, ΔRSS exceeds the heap peak (984 KB)
+by 1308–1432 KB, similar to the extra 1269–1423 KB seen in Problem 1.
 
-**Size of k\*.** Setting the expected number of all-zero k × k squares, (m−k+1)(n−k+1)(1−p)<sup>k²</sup>, equal to 1 and approximating (m−k+1)(n−k+1) by mn gives a first-moment estimate:
+**Size of k\*.** Let N<sub>k</sub> be the number of all-zero k × k squares. Then
+E[N<sub>k</sub>] = (m−k+1)(n−k+1)(1−p)<sup>k²</sup>, and since k* ≥ k exactly when N<sub>k</sub> ≥ 1,
+P(k* ≥ k) ≤ E[N<sub>k</sub>]. Setting E[N<sub>k</sub>] = 1 and approximating (m−k+1)(n−k+1) by mn gives
 
 ```
 k ≈ sqrt( ln(mn) / -ln(1-p) )
 ```
 
-For 1000 × 1000 this gives 4.5, 11.4 and 37.1 for p = 0.5, 0.1 and 0.01. The observed values are 4, 10 and 30. The estimate is somewhat high, but it shows that k* grows only like the square root of log(mn).
+Above this value E[N<sub>k</sub>] < 1 and keeps decreasing, so the estimate is an approximate
+upper bound. For 1000 × 1000 it gives 4.5, 11.5 and 37.1 for p = 0.5, 0.1 and 0.01; the
+observed values are 4, 10 and 30, all below it. (For m = 10, k* is capped by min(m, n) = 10,
+which is reached at p = 0.01.) The estimate grows only like sqrt(ln(mn)), so k* increases very
+slowly with the matrix size but strongly as p decreases.
 
 ---
 
 ## Conclusion
 
-Both problems are solved by a table DP in which each cell takes constant time, so the running time is Θ(nm). In both cases the recurrence only reads the previous row, so the extra memory can be reduced to one dimension. In Problem 1, storing the pair length in each cell makes it possible to extract the answer without the full table. The experiments agree with the analysis: time per cell stays constant as the input grows, the measured heap memory equals the computed array sizes, and every answer passed an independent check (brute force for Problem 1, prefix sums for Problem 2).
+Both problems are solved by a table DP in which each cell takes constant time, so the running
+time is Θ(nm) for Problem 1 and Θ(mn) for Problem 2. Each recurrence reads only the current
+and previous rows, so the extra memory can be reduced to one row's worth; in Problem 1,
+storing the pair length in each cell makes the answer extractable without the full table.
+The experiments agree with the analysis. The time per cell stays nearly constant as the input
+grows (except for the tiny p = 0.5 matrices), and the measured heap memory equals the computed
+array sizes. All checks passed: in Problem 1, both DP versions matched a brute force on 500
+random small cases, and in every experiment the recomputed score matched and both versions
+returned the same pair where both were run; in Problem 2, every result passed the prefix-sum
+verification.
